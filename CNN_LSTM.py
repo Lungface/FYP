@@ -6,27 +6,27 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 
 
-# ---------------------- CONFIG ---------------------- #
+#CONFIG
 
-# Folder where the filtered, split data is stored
 DATA_ROOT = r"C:\Users\laibi\Desktop\FYP\1.1.0fullsections\Output_filtered"
 
-SESSIONS = [1, 2]            # which sessions to use
+SESSIONS = [1, 2]
 
-# Choose which data to use: "forearm", "wrist", or "combined"
-MODALITY = "combined"        # <- set this to "combined" to use 28-channel data
+# data combined 28-channel 
+MODALITY = "combined"
 
-GESTURES = list(range(1, 17))  # use gesture 1..16
+# use gesture from 1 to 16
+GESTURES = list(range(1, 17))  
 
-# Typical trial length is 10240 samples
-TARGET_LEN = 10240           # timesteps (pad/crop each trial to this length)
+# trial length: 10240 samples
+TARGET_LEN = 10240
 
 BATCH_SIZE = 32
 EPOCHS = 30
 RANDOM_SEED = 42
 
 
-# ---------------------- UTILITIES ---------------------- #
+#UTILITIES CODE
 
 def pad_or_crop(x, target_len):
     """
@@ -49,21 +49,15 @@ def pad_or_crop(x, target_len):
 
 def load_trials_from_split(
     data_root,
-    split,          # "train", "val", or "test"
+    split,   
     sessions,
-    modality="combined",   # "forearm", "wrist", or "combined"
+    modality="combined",
     gestures=None,
     target_len=10240,
 ):
     """
     Walks through:
       data_root/<split>/SessionX/<modality>/gesture_YY/participant_ZZ/trial_N.npy
-
-    modality folder name must match how you saved the data:
-      - "forearm"  -> forearm-only (16 ch)
-      - "wrist"    -> wrist-only   (12 ch)
-      - "combined" -> forearm+wrist (28 ch)
-
     Returns:
       X: (N, target_len, n_channels)
       y: (N,) gesture labels [0..n_classes-1]
@@ -91,7 +85,7 @@ def load_trials_from_split(
 
             for participant_dir in gesture_dir.glob("participant_*"):
                 for trial_path in participant_dir.glob("trial_*.npy"):
-                    arr = np.load(trial_path)  # (T, C)
+                    arr = np.load(trial_path)
                     arr = pad_or_crop(arr, target_len)
                     X_list.append(arr)
                     y_list.append(label_idx)
@@ -101,7 +95,7 @@ def load_trials_from_split(
             f"No trials found for split='{split}' under {data_root} (modality='{modality}')"
         )
 
-    X = np.stack(X_list, axis=0)  # (N, T, C)
+    X = np.stack(X_list, axis=0)
     y = np.array(y_list, dtype=np.int64)
 
     print(f"[{split}] Loaded trials: {X.shape[0]}")
@@ -111,7 +105,7 @@ def load_trials_from_split(
     return X, y
 
 
-# ---------------------- MODELS ---------------------- #
+#MODELS
 
 def build_cnn_lstm_model(input_length, n_channels, n_classes):
     """
@@ -124,17 +118,17 @@ def build_cnn_lstm_model(input_length, n_channels, n_classes):
     # Block 1
     x = layers.Conv1D(32, kernel_size=7, padding="same", activation="relu")(inputs)
     x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling1D(pool_size=2)(x)   # T: 10240 -> 5120
+    x = layers.MaxPooling1D(pool_size=2)(x)
 
     # Block 2
     x = layers.Conv1D(64, kernel_size=7, padding="same", activation="relu")(x)
     x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling1D(pool_size=2)(x)   # T: 5120 -> 2560
+    x = layers.MaxPooling1D(pool_size=2)(x)
 
     # Block 3
     x = layers.Conv1D(128, kernel_size=7, padding="same", activation="relu")(x)
     x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling1D(pool_size=4)(x)   # T: 2560 -> 640
+    x = layers.MaxPooling1D(pool_size=4)(x)
 
     # BiLSTM on downsampled sequence
     x = layers.Bidirectional(
@@ -160,13 +154,12 @@ def build_cnn_lstm_model(input_length, n_channels, n_classes):
     return model
 
 
-# ---------------------- MAIN ---------------------- #
+# MAIN
 
 if __name__ == "__main__":
     np.random.seed(RANDOM_SEED)
     tf.random.set_seed(RANDOM_SEED)
 
-    # 1. Load training trials from 'train' split
     X_train, y_train = load_trials_from_split(
         data_root=DATA_ROOT,
         split="train",
@@ -176,7 +169,6 @@ if __name__ == "__main__":
         target_len=TARGET_LEN,
     )
 
-    # 2. Shuffle training trials
     N_train = X_train.shape[0]
     perm = np.random.permutation(N_train)
     X_train = X_train[perm]
@@ -186,7 +178,6 @@ if __name__ == "__main__":
     print("X_train shape:", X_train.shape)
     print("y_train shape:", y_train.shape)
 
-    # 3. Load validation trials from 'val' split
     X_val, y_val = load_trials_from_split(
         data_root=DATA_ROOT,
         split="val",
@@ -198,15 +189,13 @@ if __name__ == "__main__":
 
     print("Val shape  :", X_val.shape, y_val.shape)
 
-    # Optional: normalize data (per-channel, using train stats)
-    # This often helps EMG models
     train_mean = X_train.mean(axis=(0, 1), keepdims=True)
     train_std = X_train.std(axis=(0, 1), keepdims=True) + 1e-8
 
     X_train = (X_train - train_mean) / train_std
     X_val = (X_val - train_mean) / train_std
 
-    # 4. Build CNN+BiLSTM model
+    # Build CNN+BiLSTM model
     n_classes = len(np.unique(y_train))
     n_channels = X_train.shape[2]   # will be 28 for "combined"
     model = build_cnn_lstm_model(
@@ -231,7 +220,7 @@ if __name__ == "__main__":
         verbose=1
     )
 
-    # 5. Train with validation set
+    # Train with validation set
     history = model.fit(
         X_train, y_train,
         validation_data=(X_val, y_val),
@@ -241,7 +230,7 @@ if __name__ == "__main__":
         callbacks=[early_stop, reduce_lr],
     )
 
-    # 6. Load test set from 'test' split
+    # Load test set from test split
     X_test, y_test = load_trials_from_split(
         data_root=DATA_ROOT,
         split="test",
@@ -251,14 +240,13 @@ if __name__ == "__main__":
         target_len=TARGET_LEN,
     )
 
-    # Apply same normalization
     X_test = (X_test - train_mean) / train_std
 
-    # 7. Evaluate on test set
+    # Evaluate on test set
     test_loss, test_acc = model.evaluate(X_test, y_test, batch_size=BATCH_SIZE)
     print(f"Test loss: {test_loss:.4f}, Test accuracy: {test_acc:.4f}")
 
-    # 8. Save model
+    # Save model
     model_name = f"emg_cnn_bilstm_{MODALITY}.h5"
     model.save(model_name)
     print(f"Model saved as {model_name}")
