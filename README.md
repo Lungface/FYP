@@ -1,5 +1,5 @@
 # HMI-Driven Dexterous Prosthesis Control​
-This project utilze dataset download from: https://physionet.org/content/grabmyo/1.1.0/
+This project utilize dataset download from: https://physionet.org/content/grabmyo/1.1.0/
 
 Converting dataset into .npy by convert_to_npy.py
 
