@@ -1,1 +1,1 @@
-##HMI-Driven Dexterous Prosthesis Control​
+# HMI-Driven Dexterous Prosthesis Control​
