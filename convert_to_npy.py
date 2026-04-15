@@ -6,15 +6,15 @@ import numpy as np
 import wfdb
 
 
-# ------------------------------ configuration ------------------------------ #
+# configuration
 
 SESSIONS = [1, 2, 3]
 N_GESTURES = 16               # active gestures
 N_TRIALS = 7                  # trials per gesture
-N_GESTURES_WITH_REST = 17     # 16 gestures + 1 rest (original MATLAB uses 17)
-OUTPUT_ROOT = "Output BM"     # keep same name as MATLAB version
+N_GESTURES_WITH_REST = 17     # 16 gestures + 1 rest 
+OUTPUT_ROOT = "Output BM"     
 
-# Channel mapping as in the MATLAB code (assumes 32 physical channels)
+# Channel mapping (assumes 32 physical channels)
 # First 16 channels = forearm, some of the remaining = wrist.
 forearm_channels_mask = np.concatenate(
     (np.ones(8), np.ones(8), np.zeros(8), np.zeros(8))
@@ -27,7 +27,7 @@ wrist_channels_mask = np.concatenate(
 ).astype(bool)
 
 
-# ------------------------------ utilities ---------------------------------- #
+# utilities code
 
 def ask_overwrite_folder(path: str) -> None:
     """Create `path` or ask user whether to overwrite it if it exists."""
@@ -53,7 +53,7 @@ def ask_overwrite_folder(path: str) -> None:
 def get_number_of_subjects(session1_path: str) -> int:
     """
     Infer number of participants from Session1 folder.
-    Assumes participant folders are named: session1_participant{index}
+    participant folders are named: session1_participant{index}
     """
     entries = os.listdir(session1_path)
     subs = [
@@ -66,7 +66,7 @@ def get_number_of_subjects(session1_path: str) -> int:
     return len(subs)
 
 
-# ------------------------------ main script -------------------------------- #
+# main 
 
 def main():
     base_dir = os.getcwd()
@@ -100,7 +100,7 @@ def main():
             if not os.path.isdir(participant_input_folder):
                 raise FileNotFoundError(f"Missing participant folder: {participant_input_folder}")
 
-            # --- Read first record to discover nsamples and n_channels --- #
+            # Read first record to discover nsamples and n_channel
             example_filepath = os.path.join(
                 participant_input_folder,
                 f"{foldername}_gesture1_trial1"
@@ -131,7 +131,7 @@ def main():
                 f"({n_forearm} forearm, {n_wrist} wrist)."
             )
 
-            # --- Allocate arrays: (trial, gesture, samples, channels) --- #
+            # Allocate arrays: (trial, gesture, samples, channels) 
             DATA_FOREARM = np.zeros(
                 (N_TRIALS, N_GESTURES_WITH_REST, nsamples, n_forearm),
                 dtype=np.float64,
@@ -141,7 +141,7 @@ def main():
                 dtype=np.float64,
             )
 
-            # --- Fill arrays with data from all gestures and trials --- #
+            # Fill arrays with data from all gestures and trials 
             for igesture in range(1, N_GESTURES_WITH_REST + 1):  # 1..17
                 for itrial in range(1, N_TRIALS + 1):             # 1..7
                     filename = f"{foldername}_gesture{igesture}_trial{itrial}"
@@ -174,7 +174,7 @@ def main():
                     DATA_FOREARM[itrial - 1, igesture - 1, :, :] = data_forearm
                     DATA_WRIST[itrial - 1, igesture - 1, :, :] = data_wrist
 
-            # --- Save participant data for this session as .npz --- #
+            # Save participant data for this session as .npz 
             output_path = os.path.join(session_output_root, f"{foldername}.npz")
             np.savez_compressed(
                 output_path,
